@@ -11,25 +11,25 @@ Neovim plugin for working with PlantUML diagrams. Live preview in browser with a
 
 ## Installation
 
-### LazyVim
-
-```lua
-{
-  "user/puml-viewer.nvim",
-  ft = "plantuml",
-  opts = {},
-}
-```
-
 ### lazy.nvim
 
 ```lua
 {
   "user/puml-viewer.nvim",
   ft = "plantuml",
-  config = function()
-    require("puml-viewer").setup()
-  end,
+}
+```
+
+With custom options:
+
+```lua
+{
+  "user/puml-viewer.nvim",
+  ft = "plantuml",
+  opts = {
+    plantuml_cmd = "/usr/local/bin/plantuml",
+    export_format = "svg",
+  },
 }
 ```
 
@@ -45,14 +45,14 @@ The preview auto-reloads when you save the file (`:w`).
 
 ## Configuration
 
-All options are optional — the plugin works out of the box if `plantuml` is in your PATH.
+Calling `setup()` is optional — the plugin works out of the box with sensible
+defaults. Use it only to override specific options:
 
 ```lua
 require("puml-viewer").setup({
-  plantuml_cmd = "plantuml",   -- PlantUML command
+  plantuml_cmd = "plantuml",   -- PlantUML executable or command
   server_port = 0,             -- 0 = auto-detect free port
   browser_cmd = nil,           -- nil = auto-detect (open/xdg-open)
-  default_format = "svg",      -- Preview format
   export_format = "png",       -- Default export format ("png" | "svg")
   export_dir = nil,            -- nil = same directory as source file
 })
