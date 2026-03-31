@@ -9,7 +9,11 @@ local M = {}
 function M.get_export_path(format, export_dir)
   local filename = vim.fn.expand("%:p")
   local basename = vim.fn.fnamemodify(filename, ":t:r")
-  local dir = export_dir or vim.fn.fnamemodify(filename, ":h")
+  local source_dir = vim.fn.fnamemodify(filename, ":h")
+  local dir = export_dir or source_dir
+  if export_dir and vim.fn.fnamemodify(export_dir, ":p") ~= export_dir then
+    dir = source_dir .. "/" .. export_dir
+  end
   return dir .. "/" .. basename .. "." .. format
 end
 
@@ -44,8 +48,13 @@ function M.export(format, config)
   file:write(content)
   file:close()
 
-  -- Determine output directory
-  local output_dir = config.export_dir or vim.fn.fnamemodify(vim.fn.expand("%:p"), ":h")
+  -- Determine output directory (resolve relative paths against source file location)
+  local source_dir = vim.fn.fnamemodify(vim.fn.expand("%:p"), ":h")
+  local output_dir = config.export_dir or source_dir
+  if config.export_dir and vim.fn.fnamemodify(config.export_dir, ":p") ~= config.export_dir then
+    output_dir = source_dir .. "/" .. config.export_dir
+  end
+  vim.fn.mkdir(output_dir, "p")
   local expected_output = output_dir .. "/" .. source_basename .. "." .. format
 
   -- Build plantuml command (supports both string and table forms,
