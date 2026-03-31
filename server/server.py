@@ -14,17 +14,14 @@ import argparse
 import base64
 import hashlib
 import json
-import os
 import secrets
 import shlex
 import socket
 import subprocess
 import sys
-import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BufferedIOBase
-from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 # ---------------------------------------------------------------------------
@@ -204,7 +201,7 @@ def render_plantuml(
     puml_content: str,
     plantuml_cmd: str = "plantuml",
 ) -> tuple[str | None, str | None]:
-    """Render PlantUML content to SVG.
+    """Render PlantUML content to SVG using pipe mode (stdin→stdout).
 
     Args:
         puml_content: PlantUML source text.
@@ -218,33 +215,18 @@ def render_plantuml(
         return None, "Buffer is empty"
 
     try:
-        fd, temp_path = tempfile.mkstemp(suffix=".puml")
-        temp_file = Path(temp_path)
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(puml_content)
+        cmd = shlex.split(plantuml_cmd) + ["-tsvg", "-pipe"]
+        result = subprocess.run(
+            cmd, input=puml_content, capture_output=True, text=True, timeout=10
+        )
 
-            cmd = shlex.split(plantuml_cmd) + [
-                "-tsvg",
-                "-o",
-                str(temp_file.parent),
-                str(temp_file),
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return None, result.stderr.strip() or "PlantUML rendering failed"
 
-            if result.returncode != 0:
-                return None, result.stderr.strip() or "PlantUML rendering failed"
+        if not result.stdout.strip():
+            return None, "No SVG output from PlantUML"
 
-            svg_file = temp_file.with_suffix(".svg")
-            if svg_file.exists():
-                svg_content = svg_file.read_text()
-                svg_file.unlink()
-                return svg_content, None
-
-            return None, "No SVG file generated"
-        finally:
-            if temp_file.exists():
-                temp_file.unlink()
+        return result.stdout, None
 
     except subprocess.TimeoutExpired:
         return None, "PlantUML rendering timed out (>10s)"
