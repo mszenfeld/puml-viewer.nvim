@@ -132,11 +132,11 @@ Export: ~
 
 The plugin recognizes these PlantUML extensions:
 
-    `.puml`         (detected natively by Neovim)
-    `.plantuml`     (detected natively by Neovim)
-    `.pu`           (added by this plugin)
-    `.uml`          (added by this plugin)
-    `.iuml`         (added by this plugin)
+    `.puml`
+    `.plantuml`
+    `.pu`
+    `.uml`
+    `.iuml`
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
