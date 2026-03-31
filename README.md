@@ -15,7 +15,7 @@ Neovim plugin for working with PlantUML diagrams. Live preview in browser with a
 
 ```lua
 {
-  "user/puml-viewer.nvim",
+  "mszenfeld/puml-viewer.nvim",
   ft = "plantuml",
 }
 ```
@@ -24,7 +24,7 @@ With custom options:
 
 ```lua
 {
-  "user/puml-viewer.nvim",
+  "mszenfeld/puml-viewer.nvim",
   ft = "plantuml",
   opts = {
     plantuml_cmd = "/usr/local/bin/plantuml",
