@@ -47,3 +47,6 @@ __pycache__/
 
 .superpowers/
 .serena/
+
+# Generated files
+CHANGES.md
