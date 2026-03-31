@@ -40,6 +40,7 @@ Using lazy.nvim: >lua
     {
       "mszenfeld/puml-viewer.nvim",
       ft = "plantuml",
+      cmd = { "PumlPreview", "PumlExport", "PumlStop" },
     }
 <
 
@@ -48,6 +49,7 @@ With custom options: >lua
     {
       "mszenfeld/puml-viewer.nvim",
       ft = "plantuml",
+      cmd = { "PumlPreview", "PumlExport", "PumlStop" },
       opts = {
         plantuml_cmd = "/usr/local/bin/plantuml",
         export_format = "svg",

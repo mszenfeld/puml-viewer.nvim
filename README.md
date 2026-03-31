@@ -17,6 +17,7 @@ Neovim plugin for working with PlantUML diagrams. Live preview in browser with a
 {
   "mszenfeld/puml-viewer.nvim",
   ft = "plantuml",
+  cmd = { "PumlPreview", "PumlExport", "PumlStop" },
 }
 ```
 
@@ -26,6 +27,7 @@ With custom options:
 {
   "mszenfeld/puml-viewer.nvim",
   ft = "plantuml",
+  cmd = { "PumlPreview", "PumlExport", "PumlStop" },
   opts = {
     plantuml_cmd = "/usr/local/bin/plantuml",
     export_format = "svg",
