@@ -345,6 +345,7 @@ INDEX_HTML = """<!DOCTYPE html>
             ws.onopen = () => {
                 statusEl.textContent = 'connected';
                 statusEl.className = 'connected';
+                fetchDiagram();
             };
             ws.onmessage = (e) => { if (e.data === 'reload') fetchDiagram(); };
             ws.onclose = () => {
