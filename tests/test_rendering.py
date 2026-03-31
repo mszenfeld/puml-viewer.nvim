@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import subprocess
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from server.server import render_plantuml
 

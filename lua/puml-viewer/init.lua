@@ -19,9 +19,13 @@ local function validate_dependencies()
   end
 
   -- Split command to check just the executable name
-  local cmd_parts = vim.split(M.config.plantuml_cmd, " ")
+  -- (supports both string and table forms with proper quoting)
+  local cmd_parts = utils.shell_split(M.config.plantuml_cmd)
   if vim.fn.executable(cmd_parts[1]) == 0 then
-    table.insert(errors, M.config.plantuml_cmd .. " not found in PATH")
+    local cmd_display = type(M.config.plantuml_cmd) == "table"
+      and table.concat(M.config.plantuml_cmd, " ")
+      or M.config.plantuml_cmd
+    table.insert(errors, cmd_display .. " not found in PATH")
   end
 
   if #errors > 0 then

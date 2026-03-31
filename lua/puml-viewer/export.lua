@@ -1,11 +1,6 @@
-local M = {}
+local utils = require("puml-viewer.utils")
 
---- Check if the current buffer is a PlantUML file.
----@return boolean
-local function is_plantuml_file()
-  local ft = vim.bo.filetype
-  return ft == "plantuml"
-end
+local M = {}
 
 --- Get the output path for an exported diagram.
 ---@param format string "png" or "svg"
@@ -22,7 +17,7 @@ end
 ---@param format string "png" or "svg"
 ---@param config table Plugin configuration
 function M.export(format, config)
-  if not is_plantuml_file() then
+  if not utils.is_plantuml_file() then
     vim.notify("puml-viewer: not a PlantUML file", vim.log.levels.WARN)
     return
   end
@@ -53,8 +48,9 @@ function M.export(format, config)
   local output_dir = config.export_dir or vim.fn.fnamemodify(vim.fn.expand("%:p"), ":h")
   local expected_output = output_dir .. "/" .. source_basename .. "." .. format
 
-  -- Build plantuml command
-  local cmd = vim.split(config.plantuml_cmd, " ")
+  -- Build plantuml command (supports both string and table forms,
+  -- with proper shell quoting for paths with spaces)
+  local cmd = utils.shell_split(config.plantuml_cmd)
   vim.list_extend(cmd, { "-t" .. format, "-o", output_dir, temp_file })
 
   vim.fn.jobstart(cmd, {

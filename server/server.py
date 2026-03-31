@@ -15,19 +15,24 @@ import base64
 import hashlib
 import json
 import os
+import secrets
+import shlex
 import socket
 import subprocess
 import sys
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BufferedIOBase
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 # ---------------------------------------------------------------------------
 # WebSocket helpers (minimal RFC 6455)
 # ---------------------------------------------------------------------------
 
 WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+MAX_WS_PAYLOAD = 65536  # 64 KB -- more than enough for this use case
 
 
 def ws_accept_key(client_key: str) -> str:
@@ -39,7 +44,7 @@ def ws_accept_key(client_key: str) -> str:
 class WebSocketClient:
     """Minimal WebSocket connection handler (server side)."""
 
-    def __init__(self, rfile: object, wfile: object) -> None:
+    def __init__(self, rfile: BufferedIOBase, wfile: BufferedIOBase) -> None:
         self.rfile = rfile
         self.wfile = wfile
         self.closed: bool = False
@@ -84,6 +89,9 @@ class WebSocketClient:
             elif length == 127:
                 length = int.from_bytes(self.rfile.read(8), "big")
 
+            if length > MAX_WS_PAYLOAD:
+                return None  # reject oversized frames (CWE-400)
+
             mask_key = self.rfile.read(4) if masked else b""
             payload = bytearray(self.rfile.read(length))
 
@@ -104,6 +112,8 @@ class WebSocketClient:
 # Diagram state
 # ---------------------------------------------------------------------------
 
+MAX_WS_CLIENTS = 10  # cap concurrent WebSocket connections (CWE-770)
+
 
 class DiagramState:
     """Thread-safe container for the current diagram SVG and error state."""
@@ -111,7 +121,7 @@ class DiagramState:
     def __init__(self) -> None:
         self.svg_content: str | None = None
         self.error: str | None = None
-        self.ws_clients: list[WebSocketClient] = []
+        self._ws_clients: list[WebSocketClient] = []
         self._lock = threading.Lock()
 
     def set_svg(self, content: str) -> None:
@@ -132,26 +142,57 @@ class DiagramState:
                 return self.svg_content
             return (
                 '<svg xmlns="http://www.w3.org/2000/svg">'
-                "<text y=\"20\">No diagram yet. Save a .puml file.</text>"
+                '<text y="20">No diagram yet. Save a .puml file.</text>'
                 "</svg>"
             )
+
+    def add_client(self, client: WebSocketClient) -> None:
+        """Register a WebSocket client (thread-safe).
+
+        Silently rejects connections once MAX_WS_CLIENTS is reached to prevent
+        unbounded resource allocation (CWE-770).
+        """
+        with self._lock:
+            if len(self._ws_clients) >= MAX_WS_CLIENTS:
+                return
+            self._ws_clients.append(client)
+
+    def remove_client(self, client: WebSocketClient) -> None:
+        """Unregister a WebSocket client (thread-safe)."""
+        with self._lock:
+            if client in self._ws_clients:
+                self._ws_clients.remove(client)
+
+    def broadcast(self, message: str) -> None:
+        """Send a message to all connected WebSocket clients (thread-safe).
+
+        Dead clients discovered during broadcast are automatically removed.
+        """
+        with self._lock:
+            clients = list(self._ws_clients)
+        dead: list[WebSocketClient] = []
+        for client in clients:
+            try:
+                client.send_text(message)
+            except (OSError, ValueError):
+                dead.append(client)
+        if dead:
+            with self._lock:
+                for c in dead:
+                    if c in self._ws_clients:
+                        self._ws_clients.remove(c)
 
 
 # Global state instance used by the running server
 _state = DiagramState()
 
+# Session token for authenticating HTTP requests (CWE-306)
+_session_token: str = secrets.token_urlsafe(32)
+
 
 def _broadcast_reload(state: DiagramState) -> None:
     """Send reload message to all connected WebSocket clients."""
-    dead: list[WebSocketClient] = []
-    for client in list(state.ws_clients):
-        try:
-            client.send_text("reload")
-        except (OSError, ValueError):
-            dead.append(client)
-    for client in dead:
-        if client in state.ws_clients:
-            state.ws_clients.remove(client)
+    state.broadcast("reload")
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +200,10 @@ def _broadcast_reload(state: DiagramState) -> None:
 # ---------------------------------------------------------------------------
 
 
-def render_plantuml(puml_content: str, plantuml_cmd: str = "plantuml") -> tuple[str | None, str | None]:
+def render_plantuml(
+    puml_content: str,
+    plantuml_cmd: str = "plantuml",
+) -> tuple[str | None, str | None]:
     """Render PlantUML content to SVG.
 
     Args:
@@ -180,15 +224,13 @@ def render_plantuml(puml_content: str, plantuml_cmd: str = "plantuml") -> tuple[
             with os.fdopen(fd, "w") as f:
                 f.write(puml_content)
 
-            cmd = plantuml_cmd.split() + [
+            cmd = shlex.split(plantuml_cmd) + [
                 "-tsvg",
                 "-o",
                 str(temp_file.parent),
                 str(temp_file),
             ]
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=10
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
 
             if result.returncode != 0:
                 return None, result.stderr.strip() or "PlantUML rendering failed"
@@ -259,17 +301,40 @@ INDEX_HTML = """<!DOCTYPE html>
         const errorEl = document.getElementById('error');
         const diagramEl = document.getElementById('diagram');
 
+        // Strip the token from the URL bar so it no longer appears in
+        // browser history or the address bar (CWE-598). The server set a
+        // session cookie during this page load, so subsequent fetches
+        // authenticate via that cookie instead.
+        if (location.search.includes('token=')) {
+            const clean = location.pathname;
+            history.replaceState(null, '', clean);
+        }
+
         function fetchDiagram() {
-            fetch('/diagram.svg')
-                .then(r => r.text())
+            fetch('/diagram.svg', {credentials: 'same-origin'})
+                .then(r => {
+                    if (r.status === 403) throw new Error('Forbidden');
+                    return r.text();
+                })
                 .then(text => {
                     if (text.startsWith('ERROR:')) {
                         errorEl.textContent = text.substring(6);
                         errorEl.style.display = 'block';
-                        diagramEl.innerHTML = '';
+                        diagramEl.replaceChildren();
                     } else {
                         errorEl.style.display = 'none';
-                        diagramEl.innerHTML = text;
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(text, 'image/svg+xml');
+                        doc.querySelectorAll('script, foreignObject, animate, set').forEach(el => el.remove());
+                        doc.querySelectorAll('*').forEach(el => {
+                            for (const attr of [...el.attributes]) {
+                                if (attr.name.startsWith('on') ||
+                                    (attr.value && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+                                    el.removeAttribute(attr.name);
+                                }
+                            }
+                        });
+                        diagramEl.replaceChildren(doc.documentElement);
                     }
                 })
                 .catch(e => console.error('Fetch error:', e));
@@ -300,19 +365,66 @@ INDEX_HTML = """<!DOCTYPE html>
 class PumlHandler(BaseHTTPRequestHandler):
     """HTTP request handler for PlantUML preview server."""
 
-    # Subclasses can override to inject their own state (used in tests)
+    # Hide Python version from Server header (CWE-200)
+    server_version = "PumlViewer"
+    sys_version = ""
+
+    # Subclasses can override to inject their own state/token (used in tests)
     _state: DiagramState | None = None
+    _token: str | None = None
 
     @property
     def state(self) -> DiagramState:
         return self._state if self._state is not None else _state
 
+    @property
+    def session_token(self) -> str:
+        return self._token if self._token is not None else _session_token
+
+    def end_headers(self) -> None:
+        """Inject security headers on every response (CWE-693)."""
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        super().end_headers()
+
+    def _check_token(self) -> bool:
+        """Validate session token from query string or session cookie.
+
+        Accepts authentication via:
+        1. ``?token=...`` query parameter (used for initial page load), or
+        2. ``puml_session`` cookie (set after the first authenticated request).
+
+        This avoids keeping the token in URLs after the first load (CWE-598).
+        Returns True if valid.
+        """
+        qs = parse_qs(urlparse(self.path).query)
+        token = qs.get("token", [None])[0]
+        if token == self.session_token:
+            return True
+
+        # Fall back to cookie-based auth
+        cookie_header = self.headers.get("Cookie", "")
+        for part in cookie_header.split(";"):
+            part = part.strip()
+            if part.startswith("puml_session="):
+                cookie_value = part[len("puml_session="):]
+                if cookie_value == self.session_token:
+                    return True
+
+        self.send_error(403, "Forbidden: invalid or missing session token")
+        return False
+
     def do_GET(self) -> None:
-        if self.path == "/":
+        parsed_path = urlparse(self.path).path
+        if parsed_path == "/":
+            if not self._check_token():
+                return
             self._serve_html()
-        elif self.path == "/diagram.svg":
+        elif parsed_path == "/diagram.svg":
+            if not self._check_token():
+                return
             self._serve_diagram()
-        elif self.path == "/ws":
+        elif parsed_path == "/ws":
             self._handle_ws()
         else:
             self.send_error(404)
@@ -322,6 +434,19 @@ class PumlHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'unsafe-inline'; "
+            "connect-src ws://localhost:* ws://127.0.0.1:*; "
+            "style-src 'unsafe-inline'",
+        )
+        # Set session cookie so subsequent requests don't need the token in
+        # the URL (CWE-598). HttpOnly prevents JS access; SameSite=Strict
+        # limits the cookie to same-origin requests.
+        self.send_header(
+            "Set-Cookie",
+            f"puml_session={self.session_token}; HttpOnly; SameSite=Strict; Path=/",
+        )
         self.end_headers()
         self.wfile.write(body)
 
@@ -335,6 +460,14 @@ class PumlHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _handle_ws(self) -> None:
+        origin = self.headers.get("Origin", "")
+        if origin and not origin.startswith(("http://127.0.0.1:", "http://localhost:")):
+            self.send_error(403, "Forbidden origin")
+            return
+
+        if not self._check_token():
+            return
+
         key = self.headers.get("Sec-WebSocket-Key")
         if not key:
             self.send_error(400, "Missing Sec-WebSocket-Key")
@@ -348,7 +481,7 @@ class PumlHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
         client = WebSocketClient(self.rfile, self.wfile)
-        self.state.ws_clients.append(client)
+        self.state.add_client(client)
 
         try:
             while not client.closed:
@@ -358,10 +491,9 @@ class PumlHandler(BaseHTTPRequestHandler):
         except OSError:
             pass
         finally:
-            if client in self.state.ws_clients:
-                self.state.ws_clients.remove(client)
+            self.state.remove_client(client)
 
-    def log_message(self, format: str, *args: object) -> None:
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         """Suppress default HTTP logging."""
 
 
@@ -392,8 +524,10 @@ def read_stdin(state: DiagramState, plantuml_cmd: str) -> None:
                     svg, error = render_plantuml(content, plantuml_cmd)
                     if error:
                         state.set_error(error)
-                    else:
+                    elif svg:
                         state.set_svg(svg)
+                    else:
+                        state.set_error("Unexpected: no SVG and no error")
                 _broadcast_reload(state)
     except (KeyboardInterrupt, BrokenPipeError):
         pass
@@ -435,8 +569,8 @@ def main() -> None:
     port = args.port if args.port != 0 else find_free_port()
     server = ThreadingHTTPServer(("127.0.0.1", port), PumlHandler)
 
-    # Tell Neovim the port via stdout
-    print(json.dumps({"port": port}), flush=True)
+    # Tell Neovim the port and session token via stdout
+    print(json.dumps({"port": port, "token": _session_token}), flush=True)
 
     # Read stdin in background thread
     stdin_thread = threading.Thread(
