@@ -38,7 +38,7 @@ With custom options:
 | Command                | Description                                |
 |------------------------|--------------------------------------------|
 | `:PumlPreview`         | Start preview server and open browser      |
-| `:PumlExport [png|svg]`| Export diagram (default: png)              |
+| `:PumlExport [png/svg]`| Export diagram (default: png)              |
 | `:PumlStop`            | Stop preview server                        |
 
 The preview auto-reloads when you save the file (`:w`).
