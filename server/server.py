@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -433,7 +433,7 @@ def main() -> None:
     args = parse_args()
 
     port = args.port if args.port != 0 else find_free_port()
-    server = HTTPServer(("127.0.0.1", port), PumlHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", port), PumlHandler)
 
     # Tell Neovim the port via stdout
     print(json.dumps({"port": port}), flush=True)

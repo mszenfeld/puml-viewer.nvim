@@ -10,7 +10,7 @@ from typing import Generator
 
 import pytest
 
-from server.server import DiagramState, HTTPServer, PumlHandler, find_free_port
+from server.server import DiagramState, PumlHandler, ThreadingHTTPServer, find_free_port
 
 
 class TestFindFreePort:
@@ -44,7 +44,7 @@ class TestHttpEndpoints:
         class TestHandler(PumlHandler):
             _state = state
 
-        server = HTTPServer(("127.0.0.1", port), TestHandler)
+        server = ThreadingHTTPServer(("127.0.0.1", port), TestHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
