@@ -50,12 +50,21 @@ defaults. Use it only to override specific options:
 
 ```lua
 require("puml-viewer").setup({
-  plantuml_cmd = "plantuml",   -- PlantUML executable or command
+  plantuml_cmd = "plantuml",   -- PlantUML executable (string or list)
   server_port = 0,             -- 0 = auto-detect free port
   browser_cmd = nil,           -- nil = auto-detect (open/xdg-open)
   export_format = "png",       -- Default export format ("png" | "svg")
   export_dir = nil,            -- nil = same directory as source file
 })
+```
+
+`plantuml_cmd` accepts a string or a list of strings, which is useful when the
+command or its arguments contain spaces:
+
+```lua
+opts = {
+  plantuml_cmd = { "java", "-jar", "/path/to/plantuml.jar" },
+}
 ```
 
 ## How It Works

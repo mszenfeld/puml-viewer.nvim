@@ -94,7 +94,10 @@ Call `setup()` to override defaults. All options are optional.
 
 Options:                                           *puml-viewer-options*
 
-`plantuml_cmd`    Command to invoke PlantUML. Default: `"plantuml"`
+`plantuml_cmd`    Command to invoke PlantUML. Accepts a string or a list
+                of strings (useful when the command or arguments contain
+                spaces, e.g. `{"java", "-jar", "/path/to/plantuml.jar"}`).
+                Default: `"plantuml"`
 `server_port`     Port for the preview server. `0` picks a free port
                 automatically. Default: `0`
 `browser_cmd`     Command to open URLs. `nil` auto-detects `open` (macOS)
