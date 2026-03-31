@@ -438,7 +438,7 @@ class PumlHandler(BaseHTTPRequestHandler):
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; script-src 'unsafe-inline'; "
-            "connect-src ws://localhost:* ws://127.0.0.1:*; "
+            "connect-src 'self' ws://localhost:* ws://127.0.0.1:*; "
             "style-src 'unsafe-inline'",
         )
         # Set session cookie so subsequent requests don't need the token in
