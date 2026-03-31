@@ -1,6 +1,6 @@
 *puml-viewer.txt*    PlantUML preview and export for Neovim
 
-Author:  puml-viewer contributors
+Author: Marian Szenfeld <mef1st0@protonmail.com>
 License: MIT
 
 ==============================================================================
@@ -38,7 +38,7 @@ optional and only needed to override default configuration.
 Using lazy.nvim: >lua
 
     {
-      "user/puml-viewer.nvim",
+      "mszenfeld/puml-viewer.nvim",
       ft = "plantuml",
     }
 <
@@ -46,7 +46,7 @@ Using lazy.nvim: >lua
 With custom options: >lua
 
     {
-      "user/puml-viewer.nvim",
+      "mszenfeld/puml-viewer.nvim",
       ft = "plantuml",
       opts = {
         plantuml_cmd = "/usr/local/bin/plantuml",
@@ -57,7 +57,7 @@ With custom options: >lua
 
 Using packer.nvim: >lua
 
-    use "user/puml-viewer.nvim"
+    use "mszenfeld/puml-viewer.nvim"
 <
 
 ==============================================================================
