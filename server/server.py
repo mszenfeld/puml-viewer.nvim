@@ -444,9 +444,11 @@ class PumlHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'unsafe-inline'; "
+            "default-src 'self'; "
+            "script-src 'unsafe-inline' 'wasm-unsafe-eval'; "
             "connect-src 'self' ws://localhost:* ws://127.0.0.1:*; "
-            "style-src 'unsafe-inline'",
+            "style-src 'unsafe-inline'; "
+            "font-src 'self' https://fonts.gstatic.com",
         )
         # Set session cookie so subsequent requests don't need the token in
         # the URL (CWE-598). HttpOnly prevents JS access; SameSite=Strict
