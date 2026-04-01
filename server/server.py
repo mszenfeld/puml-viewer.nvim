@@ -277,11 +277,57 @@ INDEX_HTML = """<!DOCTYPE html>
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        #diagram {
-            background: #fff; border-radius: 8px; padding: 16px;
-            max-width: 95vw; overflow: auto;
+        #viewport {
+            position: relative;
+            background: #fff;
+            border-radius: 8px;
+            width: 95vw;
+            height: calc(100vh - 120px);
+            overflow: hidden;
+            cursor: grab;
         }
-        #diagram svg { max-width: 100%; height: auto; }
+        #viewport.grabbing { cursor: grabbing; }
+        #diagram {
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+        }
+        #diagram svg {
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(49, 50, 68, 0.8);
+            border-radius: 8px;
+            padding: 8px;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+        #controls button {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            color: #cdd6f4;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #controls button:hover {
+            background: rgba(137, 180, 250, 0.2);
+            color: #89b4fa;
+        }
+        #controls button:active {
+            background: rgba(137, 180, 250, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -292,12 +338,46 @@ INDEX_HTML = """<!DOCTYPE html>
         <div id="loader-spinner"></div>
         <div id="loader-text">Rendering diagram...</div>
     </div>
-    <div id="diagram"></div>
+    <div id="viewport">
+        <div id="diagram"></div>
+        <div id="controls">
+            <button id="zoom-in" title="Zoom in">+</button>
+            <button id="zoom-out" title="Zoom out">&minus;</button>
+            <button id="zoom-reset" title="Fit to screen">&#x22A1;</button>
+        </div>
+    </div>
     <script>
         const statusEl = document.getElementById('status');
         const errorEl = document.getElementById('error');
         const diagramEl = document.getElementById('diagram');
         const loaderEl = document.getElementById('loader');
+
+        // Zoom/pan state
+        const viewportEl = document.getElementById('viewport');
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        const MIN_SCALE = 0.1;
+        const MAX_SCALE = 5;
+        const ZOOM_FACTOR = 0.1;
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+
+        function applyTransform() {
+            diagramEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function resetZoom() {
+            scale = 1;
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        }
 
         // Strip the token from the URL bar so it no longer appears in
         // browser history or the address bar (CWE-598). The server set a
@@ -310,6 +390,7 @@ INDEX_HTML = """<!DOCTYPE html>
 
         function fetchDiagram() {
             loaderEl.style.display = 'flex';
+            resetZoom();
             diagramEl.style.display = 'none';
             fetch('/diagram.svg', {credentials: 'same-origin'})
                 .then(r => {
@@ -336,6 +417,14 @@ INDEX_HTML = """<!DOCTYPE html>
                                 }
                             }
                         });
+                        const svgEl = doc.documentElement;
+                        svgEl.removeAttribute('width');
+                        svgEl.removeAttribute('height');
+                        svgEl.style.removeProperty('width');
+                        svgEl.style.removeProperty('height');
+                        svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                        svgEl.style.width = '100%';
+                        svgEl.style.height = '100%';
                         diagramEl.replaceChildren(doc.documentElement);
                     }
                 })
@@ -347,6 +436,77 @@ INDEX_HTML = """<!DOCTYPE html>
                     console.error('Fetch error:', e);
                 });
         }
+
+        viewportEl.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = viewportEl.getBoundingClientRect();
+            const cursorX = e.clientX - rect.left;
+            const cursorY = e.clientY - rect.top;
+            const oldScale = scale;
+            const zoomDirection = e.deltaY > 0 ? 1 : -1;
+            scale = clamp(scale * (1 - zoomDirection * ZOOM_FACTOR), MIN_SCALE, MAX_SCALE);
+            panX = cursorX - (cursorX - panX) * (scale / oldScale);
+            panY = cursorY - (cursorY - panY) * (scale / oldScale);
+            applyTransform();
+        });
+
+        viewportEl.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#controls')) return;
+            isPanning = true;
+            panStartX = e.clientX;
+            panStartY = e.clientY;
+            viewportEl.classList.add('grabbing');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            panX += e.clientX - panStartX;
+            panY += e.clientY - panStartY;
+            panStartX = e.clientX;
+            panStartY = e.clientY;
+            applyTransform();
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isPanning) {
+                isPanning = false;
+                viewportEl.classList.remove('grabbing');
+            }
+        });
+
+        viewportEl.addEventListener('dblclick', (e) => {
+            if (e.target.closest('#controls')) return;
+            resetZoom();
+        });
+
+        document.getElementById('zoom-in').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const viewportRect = viewportEl.getBoundingClientRect();
+            const centerX = viewportRect.width / 2;
+            const centerY = viewportRect.height / 2;
+            const oldScale = scale;
+            scale = clamp(scale * (1 + ZOOM_FACTOR), MIN_SCALE, MAX_SCALE);
+            panX = centerX - (centerX - panX) * (scale / oldScale);
+            panY = centerY - (centerY - panY) * (scale / oldScale);
+            applyTransform();
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const viewportRect = viewportEl.getBoundingClientRect();
+            const centerX = viewportRect.width / 2;
+            const centerY = viewportRect.height / 2;
+            const oldScale = scale;
+            scale = clamp(scale * (1 - ZOOM_FACTOR), MIN_SCALE, MAX_SCALE);
+            panX = centerX - (centerX - panX) * (scale / oldScale);
+            panY = centerY - (centerY - panY) * (scale / oldScale);
+            applyTransform();
+        });
+
+        document.getElementById('zoom-reset').addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetZoom();
+        });
 
         function connect() {
             const ws = new WebSocket('ws://' + location.host + '/ws');
