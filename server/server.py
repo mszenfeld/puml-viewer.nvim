@@ -448,7 +448,7 @@ INDEX_HTML = """<!DOCTYPE html>
             panX = cursorX - (cursorX - panX) * (scale / oldScale);
             panY = cursorY - (cursorY - panY) * (scale / oldScale);
             applyTransform();
-        });
+        }, { passive: false });
 
         viewportEl.addEventListener('mousedown', (e) => {
             if (e.target.closest('#controls')) return;
@@ -479,28 +479,25 @@ INDEX_HTML = """<!DOCTYPE html>
             resetZoom();
         });
 
+        function zoomTowardCenter(direction) {
+            const rect = viewportEl.getBoundingClientRect();
+            const cx = rect.width / 2;
+            const cy = rect.height / 2;
+            const oldScale = scale;
+            scale = clamp(scale * (1 + direction * ZOOM_FACTOR), MIN_SCALE, MAX_SCALE);
+            panX = cx - (cx - panX) * (scale / oldScale);
+            panY = cy - (cy - panY) * (scale / oldScale);
+            applyTransform();
+        }
+
         document.getElementById('zoom-in').addEventListener('click', (e) => {
             e.stopPropagation();
-            const viewportRect = viewportEl.getBoundingClientRect();
-            const centerX = viewportRect.width / 2;
-            const centerY = viewportRect.height / 2;
-            const oldScale = scale;
-            scale = clamp(scale * (1 + ZOOM_FACTOR), MIN_SCALE, MAX_SCALE);
-            panX = centerX - (centerX - panX) * (scale / oldScale);
-            panY = centerY - (centerY - panY) * (scale / oldScale);
-            applyTransform();
+            zoomTowardCenter(1);
         });
 
         document.getElementById('zoom-out').addEventListener('click', (e) => {
             e.stopPropagation();
-            const viewportRect = viewportEl.getBoundingClientRect();
-            const centerX = viewportRect.width / 2;
-            const centerY = viewportRect.height / 2;
-            const oldScale = scale;
-            scale = clamp(scale * (1 - ZOOM_FACTOR), MIN_SCALE, MAX_SCALE);
-            panX = centerX - (centerX - panX) * (scale / oldScale);
-            panY = centerY - (centerY - panY) * (scale / oldScale);
-            applyTransform();
+            zoomTowardCenter(-1);
         });
 
         document.getElementById('zoom-reset').addEventListener('click', (e) => {
