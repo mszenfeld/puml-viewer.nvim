@@ -263,8 +263,10 @@ INDEX_HTML = """<!DOCTYPE html>
             white-space: pre-wrap;
         }
         #loader {
+            position: absolute; inset: 0;
             display: flex; flex-direction: column; align-items: center;
-            gap: 12px; padding: 20px;
+            justify-content: center; gap: 12px;
+            background: #1e1e2e; z-index: 5;
         }
         #loader-spinner {
             width: 32px; height: 32px; border: 3px solid #313244;
@@ -334,11 +336,11 @@ INDEX_HTML = """<!DOCTYPE html>
     <h1>PlantUML Preview</h1>
     <div id="status" class="disconnected">disconnected</div>
     <div id="error"></div>
-    <div id="loader">
-        <div id="loader-spinner"></div>
-        <div id="loader-text">Rendering diagram...</div>
-    </div>
     <div id="viewport">
+        <div id="loader">
+            <div id="loader-spinner"></div>
+            <div id="loader-text">Rendering diagram...</div>
+        </div>
         <div id="diagram"></div>
         <div id="controls">
             <button id="zoom-in" title="Zoom in">+</button>
