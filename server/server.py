@@ -322,7 +322,7 @@ INDEX_HTML = """<!DOCTYPE html>
                 })
                 .then(text => {
                     loaderEl.style.display = 'none';
-                    diagramEl.style.display = '';
+                    diagramEl.style.display = 'block';
                     if (text.startsWith('ERROR:')) {
                         errorEl.textContent = text.substring(6);
                         errorEl.style.display = 'block';
@@ -345,7 +345,7 @@ INDEX_HTML = """<!DOCTYPE html>
                 })
                 .catch(e => {
                     loaderEl.style.display = 'none';
-                    diagramEl.style.display = '';
+                    diagramEl.style.display = 'block';
                     console.error('Fetch error:', e);
                 });
         }
