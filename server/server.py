@@ -137,11 +137,7 @@ class DiagramState:
                 return f"ERROR:{self.error}"
             if self.svg_content:
                 return self.svg_content
-            return (
-                '<svg xmlns="http://www.w3.org/2000/svg">'
-                '<text y="20">No diagram yet. Save a .puml file.</text>'
-                "</svg>"
-            )
+            return '<svg xmlns="http://www.w3.org/2000/svg"/>'
 
     def add_client(self, client: WebSocketClient) -> None:
         """Register a WebSocket client (thread-safe).
