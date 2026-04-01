@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from server.server import render_plantuml
@@ -83,20 +82,13 @@ class TestRenderPlantuml:
         assert called_cmd[2] == "plantuml.jar"
 
     @patch("server.server.subprocess.run")
-    def test_cleans_up_temp_file_on_success(self, mock_run: MagicMock) -> None:
-        created_files: list[Path] = []
-
-        def fake_plantuml_run(cmd: list[str], **kwargs: object) -> MagicMock:
-            puml_file = Path(cmd[-1])
-            created_files.append(puml_file)
-            svg_file = puml_file.with_suffix(".svg")
-            svg_file.write_text(SAMPLE_SVG)
-            return MagicMock(returncode=0, stderr="")
-
-        mock_run.side_effect = fake_plantuml_run
+    def test_uses_pipe_mode(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = MagicMock(
+            returncode=0, stderr="", stdout=SAMPLE_SVG
+        )
 
         render_plantuml(SAMPLE_PUML, "plantuml")
 
-        # Temp .puml file should be cleaned up
-        assert len(created_files) == 1
-        assert not created_files[0].exists()
+        called_cmd = mock_run.call_args[0][0]
+        assert "-pipe" in called_cmd
+        assert mock_run.call_args[1].get("input") == SAMPLE_PUML

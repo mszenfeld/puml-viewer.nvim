@@ -342,6 +342,8 @@ INDEX_HTML = """<!DOCTYPE html>
                 .catch(e => {
                     loaderEl.style.display = 'none';
                     diagramEl.style.display = 'block';
+                    errorEl.textContent = 'Connection error: ' + e.message;
+                    errorEl.style.display = 'block';
                     console.error('Fetch error:', e);
                 });
         }
@@ -362,7 +364,6 @@ INDEX_HTML = """<!DOCTYPE html>
             ws.onerror = () => ws.close();
         }
 
-        fetchDiagram();
         connect();
     </script>
 </body>
