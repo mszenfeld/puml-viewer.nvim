@@ -343,7 +343,11 @@ INDEX_HTML = """<!DOCTYPE html>
                         diagramEl.replaceChildren(doc.documentElement);
                     }
                 })
-                .catch(e => console.error('Fetch error:', e));
+                .catch(e => {
+                    loaderEl.style.display = 'none';
+                    diagramEl.style.display = '';
+                    console.error('Fetch error:', e);
+                });
         }
 
         function connect() {
