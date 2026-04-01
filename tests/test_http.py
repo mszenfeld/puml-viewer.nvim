@@ -101,7 +101,7 @@ class TestHttpEndpoints:
 
         assert response.status == 403
 
-    def test_diagram_returns_placeholder_when_empty(
+    def test_diagram_returns_empty_svg_when_empty(
         self, server_with_state: tuple[HTTPConnection, DiagramState, str]
     ) -> None:
         conn, _, token = server_with_state
@@ -111,7 +111,7 @@ class TestHttpEndpoints:
         body = response.read().decode()
 
         assert response.status == 200
-        assert "No diagram yet" in body
+        assert body == '<svg xmlns="http://www.w3.org/2000/svg"/>'
 
     def test_diagram_returns_svg_content(
         self, server_with_state: tuple[HTTPConnection, DiagramState, str]

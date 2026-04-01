@@ -20,14 +20,9 @@ class TestRenderPlantuml:
 
     @patch("server.server.subprocess.run")
     def test_returns_svg_on_success(self, mock_run: MagicMock) -> None:
-        def fake_plantuml_run(cmd: list[str], **kwargs: object) -> MagicMock:
-            # Find the input .puml file from the command args
-            puml_file = Path(cmd[-1])
-            svg_file = puml_file.with_suffix(".svg")
-            svg_file.write_text(SAMPLE_SVG)
-            return MagicMock(returncode=0, stderr="")
-
-        mock_run.side_effect = fake_plantuml_run
+        mock_run.return_value = MagicMock(
+            returncode=0, stderr="", stdout=SAMPLE_SVG
+        )
 
         svg, error = render_plantuml(SAMPLE_PUML, "plantuml")
 
