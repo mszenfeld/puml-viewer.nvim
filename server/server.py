@@ -240,6 +240,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
+    <link rel="icon" href="data:,">
     <title>PlantUML Preview</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -606,7 +607,7 @@ class PumlHandler(BaseHTTPRequestHandler):
             "default-src 'self'; "
             "script-src 'unsafe-inline' 'wasm-unsafe-eval'; "
             "connect-src 'self' ws://localhost:* ws://127.0.0.1:*; "
-            "style-src 'unsafe-inline'; "
+            "style-src 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com",
         )
         # Set session cookie so subsequent requests don't need the token in
