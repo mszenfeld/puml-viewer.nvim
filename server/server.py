@@ -266,6 +266,21 @@ INDEX_HTML = """<!DOCTYPE html>
             font-family: monospace; font-size: 0.85rem; max-width: 90vw;
             white-space: pre-wrap;
         }
+        #loader {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 12px; padding: 20px;
+        }
+        #loader-spinner {
+            width: 32px; height: 32px; border: 3px solid #313244;
+            border-top-color: #89b4fa; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        #loader-text {
+            font-size: 0.9rem; color: #cdd6f4;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         #diagram {
             background: #fff; border-radius: 8px; padding: 16px;
             max-width: 95vw; overflow: auto;
@@ -277,11 +292,16 @@ INDEX_HTML = """<!DOCTYPE html>
     <h1>PlantUML Preview</h1>
     <div id="status" class="disconnected">disconnected</div>
     <div id="error"></div>
+    <div id="loader">
+        <div id="loader-spinner"></div>
+        <div id="loader-text">Rendering diagram...</div>
+    </div>
     <div id="diagram"></div>
     <script>
         const statusEl = document.getElementById('status');
         const errorEl = document.getElementById('error');
         const diagramEl = document.getElementById('diagram');
+        const loaderEl = document.getElementById('loader');
 
         // Strip the token from the URL bar so it no longer appears in
         // browser history or the address bar (CWE-598). The server set a
@@ -293,12 +313,16 @@ INDEX_HTML = """<!DOCTYPE html>
         }
 
         function fetchDiagram() {
+            loaderEl.style.display = 'flex';
+            diagramEl.style.display = 'none';
             fetch('/diagram.svg', {credentials: 'same-origin'})
                 .then(r => {
                     if (r.status === 403) throw new Error('Forbidden');
                     return r.text();
                 })
                 .then(text => {
+                    loaderEl.style.display = 'none';
+                    diagramEl.style.display = '';
                     if (text.startsWith('ERROR:')) {
                         errorEl.textContent = text.substring(6);
                         errorEl.style.display = 'block';
