@@ -8,12 +8,12 @@ from server.server import DiagramState
 class TestDiagramState:
     """Test diagram state storage and retrieval."""
 
-    def test_initial_state_returns_placeholder(self) -> None:
+    def test_initial_state_returns_empty_svg(self) -> None:
         state = DiagramState()
 
         response = state.get_response()
 
-        assert "No diagram yet" in response
+        assert response == '<svg xmlns="http://www.w3.org/2000/svg"/>'
 
     def test_set_svg_stores_content(self) -> None:
         state = DiagramState()
