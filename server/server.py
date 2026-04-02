@@ -14,6 +14,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import secrets
 import shlex
 import socket
@@ -204,8 +205,9 @@ def render_plantuml(
         puml_content: PlantUML source text.
         plantuml_cmd: Command to invoke PlantUML (may contain spaces for
             multi-word commands like "java -jar plantuml.jar").
-        source_path: Original file path. When provided, passed as
-            ``-filename`` so PlantUML resolves ``!include`` relative to it.
+        source_path: Original file path. When provided, the subprocess runs
+            with cwd set to its parent directory so ``!include`` directives
+            with relative paths resolve correctly.
 
     Returns:
         Tuple of (svg_string, error_string). One will always be None.
@@ -215,10 +217,10 @@ def render_plantuml(
 
     try:
         cmd = shlex.split(plantuml_cmd) + ["-tsvg", "-pipe"]
-        if source_path:
-            cmd.extend(["-filename", source_path])
+        cwd = os.path.dirname(source_path) if source_path else None
         result = subprocess.run(
-            cmd, input=puml_content, capture_output=True, text=True, timeout=10
+            cmd, input=puml_content, capture_output=True, text=True, timeout=10,
+            cwd=cwd,
         )
 
         if result.returncode != 0:
