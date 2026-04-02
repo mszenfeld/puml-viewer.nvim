@@ -52,9 +52,10 @@ end
 --- Send update and open browser once the server is ready.
 ---@param port number The port the server is listening on
 local function open_preview(port)
-  -- Send current buffer content
+  -- Send current buffer content with file path for !include resolution
   local content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  server.send_update(content)
+  local filepath = vim.fn.expand("%:p")
+  server.send_update(content, filepath ~= "" and filepath or nil)
 
   -- Open browser (include session token for authentication)
   local token = server.get_token()

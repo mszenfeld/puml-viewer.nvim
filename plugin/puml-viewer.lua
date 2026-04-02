@@ -30,7 +30,8 @@ vim.api.nvim_create_autocmd("BufWritePost", {
 		local server = require("puml-viewer.server")
 		if server.is_running() then
 			local content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-			server.send_update(content)
+			local filepath = vim.fn.expand("%:p")
+			server.send_update(content, filepath ~= "" and filepath or nil)
 		end
 	end,
 	desc = "Send buffer content to PlantUML preview server on save",

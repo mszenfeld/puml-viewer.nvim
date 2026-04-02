@@ -63,6 +63,7 @@ function M.export(format, config)
   vim.list_extend(cmd, { "-t" .. format, "-o", output_dir, temp_file })
 
   vim.fn.jobstart(cmd, {
+    cwd = source_dir,
     on_exit = function(_, exit_code)
       -- Clean up temp files
       os.remove(temp_file)

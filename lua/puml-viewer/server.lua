@@ -159,8 +159,9 @@ end
 
 --- Send a buffer update to the server.
 ---@param content string The PlantUML source content
+---@param filepath string|nil Absolute path to the source file (enables !include resolution)
 ---@return boolean success
-function M.send_update(content)
+function M.send_update(content, filepath)
   if not state.job_id then
     return false
   end
@@ -168,6 +169,7 @@ function M.send_update(content)
   local msg = vim.fn.json_encode({
     type = "update",
     content = content,
+    filepath = filepath,
   })
 
   local ok = pcall(vim.fn.chansend, state.job_id, msg .. "\n")

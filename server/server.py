@@ -196,6 +196,7 @@ def _broadcast_reload(state: DiagramState) -> None:
 def render_plantuml(
     puml_content: str,
     plantuml_cmd: str = "plantuml",
+    source_path: str | None = None,
 ) -> tuple[str | None, str | None]:
     """Render PlantUML content to SVG using pipe mode (stdin→stdout).
 
@@ -203,6 +204,8 @@ def render_plantuml(
         puml_content: PlantUML source text.
         plantuml_cmd: Command to invoke PlantUML (may contain spaces for
             multi-word commands like "java -jar plantuml.jar").
+        source_path: Original file path. When provided, passed as
+            ``-filename`` so PlantUML resolves ``!include`` relative to it.
 
     Returns:
         Tuple of (svg_string, error_string). One will always be None.
@@ -212,6 +215,8 @@ def render_plantuml(
 
     try:
         cmd = shlex.split(plantuml_cmd) + ["-tsvg", "-pipe"]
+        if source_path:
+            cmd.extend(["-filename", source_path])
         result = subprocess.run(
             cmd, input=puml_content, capture_output=True, text=True, timeout=10
         )
@@ -688,10 +693,13 @@ def read_stdin(state: DiagramState, plantuml_cmd: str) -> None:
 
             if msg.get("type") == "update":
                 content = msg.get("content", "")
+                filepath = msg.get("filepath")
                 if not content.strip():
                     state.set_error("Buffer is empty")
                 else:
-                    svg, error = render_plantuml(content, plantuml_cmd)
+                    svg, error = render_plantuml(
+                        content, plantuml_cmd, source_path=filepath
+                    )
                     if error:
                         state.set_error(error)
                     elif svg:
