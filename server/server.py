@@ -612,6 +612,10 @@ class PumlHandler(BaseHTTPRequestHandler):
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; "
+            # PlantUML embeds sprites (e.g. C4-PlantUML Person) as
+            # data:image/png;base64 inside the SVG; without data: in img-src
+            # the browser blocks them and shows a broken-image placeholder.
+            "img-src 'self' data:; "
             "script-src 'unsafe-inline' 'wasm-unsafe-eval'; "
             "connect-src 'self' ws://localhost:* ws://127.0.0.1:*; "
             "style-src 'unsafe-inline' https://fonts.googleapis.com; "

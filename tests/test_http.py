@@ -151,6 +151,21 @@ class TestHttpEndpoints:
 
         assert response.status == 403
 
+    def test_index_csp_allows_data_images(
+        self, server_with_state: tuple[HTTPConnection, DiagramState, str]
+    ) -> None:
+        conn, _, token = server_with_state
+
+        conn.request("GET", f"/?token={token}")
+        response = conn.getresponse()
+        response.read()
+
+        csp = response.getheader("Content-Security-Policy", "")
+        # PlantUML embeds sprites as data:image/png;base64 inside the SVG;
+        # CSP must allow data: in img-src or they render as broken images.
+        assert "img-src" in csp
+        assert "data:" in csp.split("img-src", 1)[1].split(";", 1)[0]
+
     def test_index_sets_session_cookie(
         self, server_with_state: tuple[HTTPConnection, DiagramState, str]
     ) -> None:
